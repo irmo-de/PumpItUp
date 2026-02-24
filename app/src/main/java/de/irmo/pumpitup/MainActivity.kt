@@ -16,15 +16,21 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.core.content.ContextCompat
 import de.irmo.pumpitup.ui.CounterScreen
+import de.irmo.pumpitup.ui.WorkoutLogScreen
 import de.irmo.pumpitup.ui.theme.PumpItUpTheme
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
+
+enum class Screen {
+    Counter, Log
+}
 
 class MainActivity : ComponentActivity() {
 
@@ -40,6 +46,8 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
+        window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        
         audioHelper = AudioHelper()
         cameraExecutor = Executors.newSingleThreadExecutor()
 
@@ -51,6 +59,8 @@ class MainActivity : ComponentActivity() {
         setContent {
             PumpItUpTheme {
                 val lifecycleOwner = LocalLifecycleOwner.current
+                val repository = remember { WorkoutRepository(applicationContext) }
+                var currentScreen by remember { mutableStateOf(Screen.Counter) }
                 var count by remember { mutableIntStateOf(0) }
                 
                 val cameraController = remember {
@@ -74,11 +84,30 @@ class MainActivity : ComponentActivity() {
                 }
                 
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    CounterScreen(
-                        count = count,
-                        cameraController = cameraController,
-                        modifier = Modifier.padding(innerPadding)
-                    )
+                    when (currentScreen) {
+                        Screen.Counter -> {
+                            CounterScreen(
+                                count = count,
+                                cameraController = cameraController,
+                                onFinishWorkout = { finalCount ->
+                                    repository.saveWorkout(Workout(count = finalCount))
+                                    count = 0
+                                    currentScreen = Screen.Log
+                                },
+                                onViewLogs = {
+                                    currentScreen = Screen.Log
+                                },
+                                modifier = Modifier.padding(innerPadding)
+                            )
+                        }
+                        Screen.Log -> {
+                            WorkoutLogScreen(
+                                repository = repository,
+                                onBack = { currentScreen = Screen.Counter },
+                                modifier = Modifier.padding(innerPadding)
+                            )
+                        }
+                    }
                 }
             }
         }

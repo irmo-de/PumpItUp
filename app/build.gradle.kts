@@ -62,4 +62,5 @@ dependencies {
     implementation(libs.androidx.camera.lifecycle)
     implementation(libs.androidx.camera.view)
     implementation(libs.play.services.mlkit.face.detection)
+    implementation(libs.gson)
 }
