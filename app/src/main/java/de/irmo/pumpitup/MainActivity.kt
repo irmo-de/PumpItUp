@@ -29,7 +29,7 @@ import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
 enum class Screen {
-    Counter, Log
+    Counter, Log, Settings
 }
 
 class MainActivity : ComponentActivity() {
@@ -60,6 +60,7 @@ class MainActivity : ComponentActivity() {
             PumpItUpTheme {
                 val lifecycleOwner = LocalLifecycleOwner.current
                 val repository = remember { WorkoutRepository(applicationContext) }
+                val settingsRepository = remember { SettingsRepository(applicationContext) }
                 var currentScreen by remember { mutableStateOf(Screen.Counter) }
                 var count by remember { mutableIntStateOf(0) }
                 
@@ -69,7 +70,7 @@ class MainActivity : ComponentActivity() {
                         cameraSelector = CameraSelector.DEFAULT_FRONT_CAMERA
                         setImageAnalysisAnalyzer(
                             cameraExecutor,
-                            FaceAnalyzer {
+                            FaceAnalyzer(settingsRepository) {
                                 runOnUiThread {
                                     audioHelper?.playBeep()
                                     count++
@@ -97,12 +98,22 @@ class MainActivity : ComponentActivity() {
                                 onViewLogs = {
                                     currentScreen = Screen.Log
                                 },
+                                onSettingsClick = {
+                                    currentScreen = Screen.Settings
+                                },
                                 modifier = Modifier.padding(innerPadding)
                             )
                         }
                         Screen.Log -> {
                             WorkoutLogScreen(
                                 repository = repository,
+                                onBack = { currentScreen = Screen.Counter },
+                                modifier = Modifier.padding(innerPadding)
+                            )
+                        }
+                        Screen.Settings -> {
+                            de.irmo.pumpitup.ui.SettingsScreen(
+                                settingsRepository = settingsRepository,
                                 onBack = { currentScreen = Screen.Counter },
                                 modifier = Modifier.padding(innerPadding)
                             )

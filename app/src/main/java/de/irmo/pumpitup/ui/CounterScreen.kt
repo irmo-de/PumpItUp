@@ -1,5 +1,9 @@
 package de.irmo.pumpitup.ui
 
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.camera.view.LifecycleCameraController
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -22,6 +26,7 @@ fun CounterScreen(
     cameraController: LifecycleCameraController?,
     onFinishWorkout: (Int) -> Unit,
     onViewLogs: () -> Unit,
+    onSettingsClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Box(modifier = modifier.fillMaxSize()) {
@@ -44,6 +49,19 @@ fun CounterScreen(
                 .fillMaxSize()
                 .background(Color.Black.copy(alpha = 0.6f))
         )
+        
+        IconButton(
+            onClick = onSettingsClick,
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(16.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Filled.Settings,
+                contentDescription = "Settings",
+                tint = Color.White
+            )
+        }
         
         Text(
             text = count.toString(),
