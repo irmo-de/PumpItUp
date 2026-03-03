@@ -18,7 +18,15 @@ class WorkoutRepository(context: Context) {
     fun getWorkouts(): List<Workout> {
         val json = prefs.getString("workouts", null) ?: return emptyList()
         val type = object : TypeToken<List<Workout>>() {}.type
-        return gson.fromJson(json, type)
+        val parsed: List<Workout> = gson.fromJson(json, type) ?: emptyList()
+        
+        // Filter out corrupted older entries (from json minification mismatch)
+        val validWorkouts = parsed.filter { it.timestamp != 0L || it.count != 0 }
+        
+        // Ensure older entries without an ID are given one
+        return validWorkouts.map { 
+            if (it.id == null) it.copy(id = java.util.UUID.randomUUID().toString()) else it 
+        }
     }
 
     fun deleteWorkout(id: String) {

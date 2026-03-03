@@ -1,6 +1,7 @@
 package de.irmo.pumpitup
 
 import android.annotation.SuppressLint
+import android.util.Log
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
 import com.google.mlkit.vision.common.InputImage
@@ -26,45 +27,63 @@ class FaceAnalyzer(
         if (mediaImage != null) {
             val image = InputImage.fromMediaImage(mediaImage, imageProxy.imageInfo.rotationDegrees)
             
-            detector.process(image)
-                .addOnSuccessListener { faces ->
-                    if (faces.isNotEmpty()) {
-                        val face = faces.first()
-                        val box = face.boundingBox
-                        
-                        val faceArea = box.width() * box.height()
-                        val imageArea = image.width * image.height
-                        
-                        val ratio = faceArea.toFloat() / imageArea.toFloat()
-                        
-                        // Hysteresis for workout counter
-                        // Upper threshold to detect bottom of pushup
-                        if (ratio > settingsRepository.getUpperThreshold()) {
-                            wasFaceClose = true
-                        } 
-                        // Lower threshold to count completion of pushup
-                        else if (ratio < settingsRepository.getLowerThreshold()) {
-                            if (wasFaceClose) {
-                                val currentTime = System.currentTimeMillis()
-                                if (currentTime - lastPushupTime > settingsRepository.getDebounceTime()) {
-                                    onPushupCounted()
-                                    lastPushupTime = currentTime
+            try {
+                detector.process(image)
+                    .addOnSuccessListener { faces ->
+                        if (faces.isNotEmpty()) {
+                            val face = faces.first()
+                            val box = face.boundingBox
+                            
+                            val faceArea = box.width() * box.height()
+                            val imageArea = image.width * image.height
+                            
+                            val ratio = faceArea.toFloat() / imageArea.toFloat()
+                            
+                            val upper = settingsRepository.getUpperThreshold()
+                            val lower = settingsRepository.getLowerThreshold()
+                            
+                            Log.d("PushupAnalyzer", "Face Ratio: $ratio, UpperThreshold: $upper, LowerThreshold: $lower, wasFaceClose: $wasFaceClose")
+                            
+                            // Hysteresis for workout counter
+                            // Upper threshold to detect bottom of pushup
+                            if (ratio > upper) {
+                                if (!wasFaceClose) {
+                                    Log.d("PushupAnalyzer", "Crossed upper threshold. Bottom of pushup reached.")
                                 }
-                                wasFaceClose = false
+                                wasFaceClose = true
+                            } 
+                            // Lower threshold to count completion of pushup
+                            else if (ratio < lower) {
+                                if (wasFaceClose) {
+                                    val currentTime = System.currentTimeMillis()
+                                    val debounce = settingsRepository.getDebounceTime()
+                                    if (currentTime - lastPushupTime > debounce) {
+                                        Log.d("PushupAnalyzer", "Pushup counted!")
+                                        onPushupCounted()
+                                        lastPushupTime = currentTime
+                                    } else {
+                                        Log.d("PushupAnalyzer", "Pushup ignored due to debounce (${currentTime - lastPushupTime}ms <= ${debounce}ms)")
+                                    }
+                                    wasFaceClose = false
+                                }
                             }
+                        } else {
+                            Log.d("PushupAnalyzer", "No face detected in this frame.")
+                            // We intentionally do nothing here. If the face gets too close
+                            // and the ML Kit detector drops the tracking, ignoring it
+                            // here prevents false positives. Wait for it to return and cross lower threshold.
                         }
-                    } else {
-                        // We intentionally do nothing here. If the face gets too close
-                        // and the ML Kit detector drops the tracking, ignoring it
-                        // here prevents false positives. Wait for it to return and cross lower threshold.
                     }
-                }
-                .addOnFailureListener {
-                    // Ignore
-                }
-                .addOnCompleteListener {
-                    imageProxy.close()
-                }
+                    .addOnFailureListener { e ->
+                        Log.e("PushupAnalyzer", "Face detection failed!", e)
+                    }
+                    .addOnCompleteListener {
+                        imageProxy.close()
+                    }
+            } catch (e: Exception) {
+                Log.e("PushupAnalyzer", "Synchronous error in process", e)
+                imageProxy.close()
+            }
         } else {
             imageProxy.close()
         }

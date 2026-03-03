@@ -80,8 +80,12 @@ class MainActivity : ComponentActivity() {
                     }
                 }
                 
-                LaunchedEffect(lifecycleOwner) {
-                    cameraController.bindToLifecycle(lifecycleOwner)
+                LaunchedEffect(currentScreen, lifecycleOwner) {
+                    if (currentScreen == Screen.Counter) {
+                        cameraController.bindToLifecycle(lifecycleOwner)
+                    } else {
+                        cameraController.unbind()
+                    }
                 }
                 
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
